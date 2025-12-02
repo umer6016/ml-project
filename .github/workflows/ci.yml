@@ -33,7 +33,4 @@ jobs:
       run: |
         pytest tests/
 
-    # Note: DeepChecks might require data, so we might skip it in CI if data isn't available
-    # or use a small sample data committed to the repo.
-    - name: Run DeepChecks
-      run: python tests/data_validation.py
+
