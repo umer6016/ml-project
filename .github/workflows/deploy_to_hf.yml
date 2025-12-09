@@ -19,4 +19,22 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git push -f https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/Stockker main
+          # Configure Git
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          
+          # 1. Clone the HF Repo specifically
+          git clone https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/Stockker hf_space
+          cd hf_space
+          
+          # 2. Delete everything in HF repo (to ensure clean slate) except .git
+          # (We use find to avoid error if empty)
+          find . -maxdepth 1 -not -name '.git' -not -name '.' -exec rm -rf {} +
+          
+          # 3. Copy files from our GitHub repo (parent dir) to here
+          cp -r ../* .
+          
+          # 4. Add, Commit, Push
+          git add .
+          git commit -m "Deploy from GitHub Actions" --allow-empty
+          git push https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/Stockker main
