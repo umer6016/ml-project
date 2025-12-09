@@ -17,7 +17,9 @@ dependencies = [
     "pydantic",
     "python-multipart",
     "joblib",
-    "matplotlib"
+    "matplotlib",
+    "streamlit",
+    "plotly"
 ]
 
 [project.optional-dependencies]

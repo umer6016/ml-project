@@ -24,12 +24,17 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY src/ src/
 COPY tests/ tests/
 COPY .env.example .env
+COPY streamlit_app.py .
 
-# Create directories for data and models
-RUN mkdir -p data/processed models reports
+# Copy models (CRITICAL for Standalone Mode)
+COPY models/ models/
 
-# Expose port
-EXPOSE 8000
+# Create directories for data and reports
+RUN mkdir -p data/processed reports && \
+    chmod -R 777 data models reports
 
-# Command to run the API
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Expose port (Hugging Face Requirement)
+EXPOSE 7860
+
+# Command to run Streamlit
+CMD ["streamlit", "run", "streamlit_app.py", "--server.port", "7860", "--server.address", "0.0.0.0"]
