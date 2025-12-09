@@ -1,57 +1,33 @@
-# End-to-End Stock Prediction System
+---
+title: AI Stock Prediction System
+emoji: 📈
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 7860
+---
 
-A comprehensive machine learning system for stock market prediction, featuring data ingestion, processing, model training, and deployment.
+# 📈 AI Stock Prediction & Analysis System
 
-## Features
-- **Data Ingestion**: Fetches daily stock data from Alpha Vantage.
-- **Data Processing**: Calculates technical indicators (SMA, RSI, MACD).
-- **Machine Learning**:
-    - **Regression**: Predicts next day's closing price.
-    - **Classification**: Predicts price direction (Up/Down).
-    - **Clustering**: Groups market regimes based on volatility.
-    - **PCA**: Dimensionality reduction for feature analysis.
-- **Orchestration**: Prefect workflows for automated pipelines.
-- **Validation**: Deepchecks for data integrity and drift detection.
-- **Deployment**: Dockerized FastAPI application with Postgres database.
-- **CI/CD**: GitHub Actions for testing and deployment.
+An End-to-End Machine Learning System for predicting stock prices and analyzing market regimes.
 
-## Tech Stack
-- **Language**: Python 3.9
-- **Frameworks**: FastAPI, Prefect, Scikit-Learn, Pandas
-- **Tools**: Docker, Docker Compose, Deepchecks, Pytest
-- **Database**: PostgreSQL
+## 🚀 Features
 
-## Quick Start
+*   **Ensemble Models:** Combines Linear Regression, Random Forest, and SVM for robust predictions.
+*   **Live Data:** Fetches real-time price data from Alpha Vantage.
+*   **Market Analysis:** Unsupervised Learning (Clustering & PCA) to detect market volatility regimes.
+*   **Automated Pipeline:** Built with Prefect for orchestration and GitHub Actions for CI/CD.
 
-### Prerequisites
-- Docker & Docker Compose
-- Alpha Vantage API Key (set in `.env`)
+## 🛠️ Tech Stack
 
-### Installation
-1. Clone the repository.
-2. Create a `.env` file:
-    ```bash
-    cp .env.example .env
-    # Edit .env with your API key
-    ```
-3. Build and start services:
-    ```bash
-    docker-compose up --build -d
-    ```
+*   **Frontend:** Streamlit
+*   **Backend:** FastAPI / Prefect
+*   **ML:** Scikit-Learn, Pandas, Numpy
+*   **DevOps:** Docker, GitHub Actions
 
-### Usage
-- **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Prefect UI**: [http://localhost:4200](http://localhost:4200)
-- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+## 📊 How to Use
 
-### Running Tests
-```bash
-pip install -e .[dev]
-python -m pytest tests/
-```
-
-### Training Models
-To train models manually:
-```bash
-python src/orchestration/flows.py
-```
+1.  Select a stock from the sidebar (e.g., AAPL, NVDA).
+2.  View the Real-Time Metrics and AI Predictions.
+3.  Switch tabs to explore the "Market Regime" visualization.
