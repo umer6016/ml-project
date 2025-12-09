@@ -19,4 +19,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git push -f https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/stock-prediction-system main
+          git push -f https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/Stockker main
