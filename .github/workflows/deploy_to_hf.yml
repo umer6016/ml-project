@@ -15,26 +15,27 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Push to hub
+      - name: Install Python dependencies
+        run: pip install huggingface_hub
+
+      - name: Push to Hub (Python Mode)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Configure Git
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
+          python -c "
+          from huggingface_hub import HfApi
+          import os
           
-          # 1. Clone the HF Repo specifically
-          git clone https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/Stockker hf_space
-          cd hf_space
+          api = HfApi()
+          print('Uploading files to Hugging Face...')
           
-          # 2. Delete everything in HF repo (to ensure clean slate) except .git
-          # (We use find to avoid error if empty)
-          find . -maxdepth 1 -not -name '.git' -not -name '.' -exec rm -rf {} +
-          
-          # 3. Copy files from our GitHub repo (parent dir) to here
-          cp -r ../* .
-          
-          # 4. Add, Commit, Push
-          git add .
-          git commit -m "Deploy from GitHub Actions" --allow-empty
-          git push https://umer6016:$HF_TOKEN@huggingface.co/spaces/umer6016/Stockker main
+          # Upload the entire current directory to the Space
+          api.upload_folder(
+              folder_path='.',
+              repo_id='umer6016/Stockker',
+              repo_type='space',
+              token=os.environ['HF_TOKEN'],
+              ignore_patterns=['.git', '.github', '__pycache__', 'vocab.txt']
+          )
+          print('Upload complete!')
+          "
