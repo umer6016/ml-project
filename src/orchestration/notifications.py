@@ -4,7 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Sanitize URL: Remove whitespace and replace PTB/Canary domains with standard domain
 WEBHOOK_URL = (os.getenv("WEBHOOK_URL") or "").strip()
+WEBHOOK_URL = WEBHOOK_URL.replace("ptb.discord.com", "discord.com").replace("canary.discord.com", "discord.com")
 
 def notify_discord(message: str) -> tuple[bool, str]:
     """Sends a notification to Discord. Returns (Success, status_message)."""
