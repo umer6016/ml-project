@@ -159,6 +159,25 @@ if ALPHA_VANTAGE_KEY:
 else:
     st.sidebar.warning("Alpha Vantage: Missing ⚠️ (Using Mock Data)")
 
+# --- Network Diagnostics ---
+with st.sidebar.expander("📡 Network Diagnostics", expanded=False):
+    if st.button("Run Connectivity Test"):
+        import socket
+        
+        # Test 1: Google DNS (General Internet)
+        try:
+            ip = socket.gethostbyname("google.com")
+            st.success(f"Google DNS: OK ({ip})")
+        except Exception as e:
+            st.error(f"Google DNS Failed: {e}")
+            
+        # Test 2: Discord DNS
+        try:
+            ip = socket.gethostbyname("discord.com")
+            st.success(f"Discord DNS: OK ({ip})")
+        except Exception as e:
+            st.error(f"Discord DNS Failed: {e}")
+
 # --- Main Logic ---
 
 # 1. Fetch Data
