@@ -53,7 +53,9 @@ def send_discord_notification(symbol, price, change_percent, prediction_dir):
     
     # Use the robust notification function
     # It handles checking WEBHOOK_URL and printing errors
-    notify_discord(message)
+    # Use the robust notification function
+    # It handles checking WEBHOOK_URL and printing errors
+    return notify_discord(message)
 
 @st.cache_data(ttl=3600) # CACHE FOR 1 HOUR
 def fetch_live_data(symbol):
@@ -209,8 +211,10 @@ if models:
     col_notify, _ = st.columns([1, 4])
     with col_notify:
         if st.button("🔔 Send Discord Notification"):
-             send_discord_notification(symbol, data['price'], data['change'], direction)
-             st.success("Notification sent! (Check Discord)")
+             if send_discord_notification(symbol, data['price'], data['change'], direction):
+                 st.success("Notification sent! (Check Discord)")
+             else:
+                 st.error("Failed to send notification. Check Logs.")
 
     # Auto-send (optional - leaving disabled for now to prevent spam loop on refresh, user can click button)
     # if not data['is_mock']:
