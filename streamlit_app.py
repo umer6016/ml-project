@@ -211,10 +211,11 @@ if models:
     col_notify, _ = st.columns([1, 4])
     with col_notify:
         if st.button("🔔 Send Discord Notification"):
-             if send_discord_notification(symbol, data['price'], data['change'], direction):
-                 st.success("Notification sent! (Check Discord)")
+             success, status_msg = send_discord_notification(symbol, data['price'], data['change'], direction)
+             if success:
+                 st.success(f"Success: {status_msg}")
              else:
-                 st.error("Failed to send notification. Check Logs.")
+                 st.error(f"Failed: {status_msg}")
 
     # Auto-send (optional - leaving disabled for now to prevent spam loop on refresh, user can click button)
     # if not data['is_mock']:
