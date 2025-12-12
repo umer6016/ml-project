@@ -220,21 +220,21 @@ if models:
     with col_pred2:
         st.success(f"**Target Price (Next Close):** ${pred_price:.2f}")
 
-    # Discord Notification Trigger (Only if not mock and strictly if specific conditions met)
-    # To avoid spamming on every refresh, we rely on the fact that this function is only called 
-    # when cache invalidates (once per hour) or user manually clears it.
-    # Discord Notification Trigger
-    # Changed logic: Always attempt to send if webhook is present, or allow manual trigger.
-    # Note: Automatic sending on every refresh might be spammy, so we'll add a manual button for testing.
+# --- Sidebar Notification Test ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔔 Notification Test")
+if st.sidebar.button("Send Test Notification"):
+    # Use current data if available, else defaults
+    current_price = data.get('price', 0.0)
+    current_change = data.get('change', 0.0)
+    # If models failed, we won't have 'direction', so we use a placeholder for the test
+    test_direction = direction if 'direction' in locals() else "TEST_SIGNAL 🟡"
     
-    col_notify, _ = st.columns([1, 4])
-    with col_notify:
-        if st.button("🔔 Send Discord Notification"):
-             success, status_msg = send_discord_notification(symbol, data['price'], data['change'], direction)
-             if success:
-                 st.success(f"Success: {status_msg}")
-             else:
-                 st.error(f"Failed: {status_msg}")
+    success, status_msg = send_discord_notification(symbol, current_price, current_change, test_direction)
+    if success:
+        st.sidebar.success(f"Sent! {status_msg}")
+    else:
+        st.sidebar.error(f"Failed: {status_msg}")
 
     # Auto-send (optional - leaving disabled for now to prevent spam loop on refresh, user can click button)
     # if not data['is_mock']:
