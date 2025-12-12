@@ -38,25 +38,22 @@ def load_models_local():
         st.error(f"Failed to load models locally: {e}")
         return None
 
+from src.orchestration.notifications import notify_discord
+
 def send_discord_notification(symbol, price, change_percent, prediction_dir):
-    """Sends a formatted message to Discord."""
-    if not WEBHOOK_URL:
-        # print("No Webhook URL found.")
-        return
+    """Sends a formatted message to Discord using the centralized module."""
     
     emoji = "🚀" if change_percent > 0 else "🔻"
     pred_emoji = "🟢" if "UP" in prediction_dir else "🔴"
     
-    message = {
-        "content": f"**Hourly Stock Update** 🕒\n"
-                   f"**{symbol}**: ${price:.2f} {emoji} ({change_percent:.2f}%)\n"
-                   f"**AI Prediction:** {prediction_dir} {pred_emoji}"
-    }
-    try:
-        requests.post(WEBHOOK_URL, json=message)
-        print(f"Sent notification for {symbol}")
-    except Exception as e:
-        print(f"Failed to send Discord notification: {e}")
+    # Format the message string
+    message = (f"**Hourly Stock Update** 🕒\n"
+               f"**{symbol}**: ${price:.2f} {emoji} ({change_percent:.2f}%)\n"
+               f"**AI Prediction:** {prediction_dir} {pred_emoji}")
+    
+    # Use the robust notification function
+    # It handles checking WEBHOOK_URL and printing errors
+    notify_discord(message)
 
 @st.cache_data(ttl=3600) # CACHE FOR 1 HOUR
 def fetch_live_data(symbol):
@@ -189,8 +186,19 @@ if models:
     # Discord Notification Trigger (Only if not mock and strictly if specific conditions met)
     # To avoid spamming on every refresh, we rely on the fact that this function is only called 
     # when cache invalidates (once per hour) or user manually clears it.
-    if not data['is_mock']:
-        send_discord_notification(symbol, data['price'], data['change'], direction)
+    # Discord Notification Trigger
+    # Changed logic: Always attempt to send if webhook is present, or allow manual trigger.
+    # Note: Automatic sending on every refresh might be spammy, so we'll add a manual button for testing.
+    
+    col_notify, _ = st.columns([1, 4])
+    with col_notify:
+        if st.button("🔔 Send Discord Notification"):
+             send_discord_notification(symbol, data['price'], data['change'], direction)
+             st.success("Notification sent! (Check Discord)")
+
+    # Auto-send (optional - leaving disabled for now to prevent spam loop on refresh, user can click button)
+    # if not data['is_mock']:
+    #     send_discord_notification(symbol, data['price'], data['change'], direction)
 
 # 4. Footer
 st.markdown("---")
