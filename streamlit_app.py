@@ -47,7 +47,7 @@ def send_discord_notification(symbol, price, change_percent, prediction_dir):
     pred_emoji = "🟢" if "UP" in prediction_dir else "🔴"
     
     # Format the message string
-    message = (f"**Hourly Stock Update** 🕒\n"
+    message = (f"**Stock Update** 🕒\n"
                f"**{symbol}**: ${price:.2f} {emoji} ({change_percent:.2f}%)\n"
                f"**AI Prediction:** {prediction_dir} {pred_emoji}")
     
@@ -140,6 +140,22 @@ symbol = st.sidebar.selectbox("Select Stock", available_stocks)
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear() # Clear cache to force update
     st.rerun()
+
+# --- Debugging Status (Sidebar) ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🛠️ System Status")
+
+# Check Webhook
+if WEBHOOK_URL:
+    st.sidebar.success(f"Discord Webhook: Configured (Ends in ...{WEBHOOK_URL[-4:]})")
+else:
+    st.sidebar.error("Discord Webhook: Missing ❌")
+
+# Check Alpha Vantage
+if ALPHA_VANTAGE_KEY:
+    st.sidebar.success("Alpha Vantage: Configured ✅")
+else:
+    st.sidebar.warning("Alpha Vantage: Missing ⚠️ (Using Mock Data)")
 
 # --- Main Logic ---
 
