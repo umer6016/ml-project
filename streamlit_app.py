@@ -177,6 +177,20 @@ with st.sidebar.expander("📡 Network Diagnostics", expanded=False):
             st.success(f"Discord DNS: OK ({ip})")
         except Exception as e:
             st.error(f"Discord DNS Failed: {e}")
+            
+        # Test 3: HTTP Request (Requests Lib)
+        try:
+            r = requests.get("https://discord.com", timeout=5)
+            st.success(f"HTTP GET discord.com: OK ({r.status_code})")
+        except Exception as e:
+            st.error(f"HTTP GET Failed: {e}")
+            
+        # Check Proxies
+        proxies = {k: v for k, v in os.environ.items() if 'proxy' in k.lower()}
+        if proxies:
+            st.warning(f"Proxies detected: {proxies}")
+        else:
+            st.info("No Proxy Vars detected.")
 
 # --- Main Logic ---
 
