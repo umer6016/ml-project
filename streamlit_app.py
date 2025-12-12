@@ -143,54 +143,9 @@ if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear() # Clear cache to force update
     st.rerun()
 
-# --- Debugging Status (Sidebar) ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("🛠️ System Status")
 
-# Check Webhook
-if WEBHOOK_URL:
-    st.sidebar.success(f"Discord Webhook: Configured (Ends in ...{WEBHOOK_URL[-4:]})")
-else:
-    st.sidebar.error("Discord Webhook: Missing ❌")
 
-# Check Alpha Vantage
-if ALPHA_VANTAGE_KEY:
-    st.sidebar.success("Alpha Vantage: Configured ✅")
-else:
-    st.sidebar.warning("Alpha Vantage: Missing ⚠️ (Using Mock Data)")
 
-# --- Network Diagnostics ---
-with st.sidebar.expander("📡 Network Diagnostics", expanded=False):
-    if st.button("Run Connectivity Test"):
-        import socket
-        
-        # Test 1: Google DNS (General Internet)
-        try:
-            ip = socket.gethostbyname("google.com")
-            st.success(f"Google DNS: OK ({ip})")
-        except Exception as e:
-            st.error(f"Google DNS Failed: {e}")
-            
-        # Test 2: Discord DNS
-        try:
-            ip = socket.gethostbyname("discord.com")
-            st.success(f"Discord DNS: OK ({ip})")
-        except Exception as e:
-            st.error(f"Discord DNS Failed: {e}")
-            
-        # Test 3: HTTP Request (Requests Lib)
-        try:
-            r = requests.get("https://discord.com", timeout=5)
-            st.success(f"HTTP GET discord.com: OK ({r.status_code})")
-        except Exception as e:
-            st.error(f"HTTP GET Failed: {e}")
-            
-        # Check Proxies
-        proxies = {k: v for k, v in os.environ.items() if 'proxy' in k.lower()}
-        if proxies:
-            st.warning(f"Proxies detected: {proxies}")
-        else:
-            st.info("No Proxy Vars detected.")
 
 # --- Main Logic ---
 
@@ -234,31 +189,21 @@ if models:
     with col_pred2:
         st.success(f"**Target Price (Next Close):** ${pred_price:.2f}")
 
-# --- Sidebar Notification Test ---
+# --- Sidebar Notification ---
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔔 Notification Test")
-if st.sidebar.button("Send Test Notification"):
+if st.sidebar.button("🔔 Send Discord Update"):
     # Use current data if available, else defaults
     current_price = data.get('price', 0.0)
     current_change = data.get('change', 0.0)
-    # If models failed, we won't have 'direction', so we use a placeholder for the test
-    test_direction = direction if 'direction' in locals() else "TEST_SIGNAL 🟡"
+    # If models failed, we won't have 'direction', so we use a placeholder checks
+    test_direction = direction if 'direction' in locals() else "N/A"
     
     success, status_msg = send_discord_notification(symbol, current_price, current_change, test_direction)
     if success:
-        st.sidebar.success(f"Sent! {status_msg}")
+        st.sidebar.success("Sent!")
     else:
         st.sidebar.error(f"Failed: {status_msg}")
 
-    # Auto-send (optional - leaving disabled for now to prevent spam loop on refresh, user can click button)
-    # if not data['is_mock']:
-    #     send_discord_notification(symbol, data['price'], data['change'], direction)
-
 # 4. Footer
 st.markdown("---")
-# Simplified View
-st.caption("Simplified Mode | Model: Ensemble (SVM + RF + Linear)")
-
-# Footer
-st.markdown("---")
-st.caption("Deployed via Hugging Face Spaces | Model: Ensemble (SVM + RF + Linear)")
+st.caption("AI Stock Prediction System | Deployed on Hugging Face Spaces")
