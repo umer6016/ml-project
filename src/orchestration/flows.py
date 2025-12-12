@@ -11,19 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-
-def notify_discord(message: str):
-    """Sends a notification to Discord."""
-    if not WEBHOOK_URL:
-        print("Warning: WEBHOOK_URL not set. Skipping notification.")
-        return
-    
-    data = {"content": message}
-    try:
-        requests.post(WEBHOOK_URL, json=data)
-    except Exception as e:
-        print(f"Failed to send notification: {e}")
+from src.orchestration.notifications import notify_discord
 
 @task(retries=3, retry_delay_seconds=60)
 def fetch_stock_data(symbol: str):
