@@ -192,50 +192,10 @@ if models:
     if not data['is_mock']:
         send_discord_notification(symbol, data['price'], data['change'], direction)
 
-# 4. Market Analysis Tabs
+# 4. Footer
 st.markdown("---")
-tab1, tab2 = st.tabs(["📊 Technical Dashboard", "🧭 Market Regime (Cluster)"])
-
-with tab1:
-    # Gauge Chart for RSI
-    fig_rsi = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = data['rsi'],
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': "RSI Strength"},
-        gauge = {'axis': {'range': [0, 100]},
-                 'bar': {'color': "darkblue"},
-                 'steps': [
-                     {'range': [0, 30], 'color': "lightgreen"}, # Oversold
-                     {'range': [30, 70], 'color': "gray"},
-                     {'range': [70, 100], 'color': "red"}], # Overbought
-                 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': data['rsi']}}))
-    st.plotly_chart(fig_rsi, use_container_width=True)
-
-with tab2:
-    # Clustering Visualization
-    # Using approximated volatility for visualization
-    volatility = data['price'] * 0.02 # estimating 2% volatility for visualization if real calc not avail
-    cluster_features = np.array([[volatility, data['rsi']]])
-    cluster_id = models['clustering'].predict(cluster_features)[0]
-    
-    st.write(f"### Current Market Regime: **Cluster {cluster_id}**")
-    if cluster_id == 0:
-        st.caption("Hypothesis: Low Volatility / Stable")
-    elif cluster_id == 1:
-        st.caption("Hypothesis: High Volatility / Risky")
-    else:
-        st.caption("Hypothesis: Transitioning")
-    
-    # PCA Plot
-    pca_result = models['pca'].transform(features)
-    pc1, pc2 = pca_result[0]
-    
-    fig_pca = go.Figure()
-    fig_pca.add_trace(go.Scatter(x=[0, 1, -1], y=[0, 1, -1], mode='markers', name='Regimes', marker=dict(color='gray', opacity=0.3, size=20)))
-    fig_pca.add_trace(go.Scatter(x=[pc1], y=[pc2], mode='markers', name='Current State', marker=dict(color='orange', size=25, symbol='star')))
-    fig_pca.update_layout(title="PCA Market Map", xaxis_title="PC1", yaxis_title="PC2")
-    st.plotly_chart(fig_pca, use_container_width=True)
+# Simplified View
+st.caption("Simplified Mode | Model: Ensemble (SVM + RF + Linear)")
 
 # Footer
 st.markdown("---")
