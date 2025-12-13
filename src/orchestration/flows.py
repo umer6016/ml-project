@@ -49,7 +49,7 @@ def train_and_evaluate(df: pd.DataFrame, symbol: str):
     return True
 
 @flow(name="End-to-End Stock Prediction Pipeline")
-def main_pipeline(symbols: list[str] = ["AAPL", "GOOGL"]):
+def main_pipeline(symbols: list[str] = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA"]):
     """Main flow to run the entire pipeline."""
     notify_discord("🚀 Starting End-to-End Pipeline...")
     

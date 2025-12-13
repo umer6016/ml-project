@@ -1,59 +1,73 @@
 # Codebase Explanation & Walkthrough
 
-This document explains how the Stock Prediction System works under the hood. It is designed to help you understand the code so you can explain it during your presentation.
+This document provides a detailed technical explanation of the "AI Stock Prediction System" (Stockker). Use this to understand the underlying logic and architecture.
 
-## 1. The Big Picture
-The system is a pipeline that moves data through these stages:
-1.  **Ingestion**: Fetch raw data from the internet (Alpha Vantage).
-2.  **Processing**: Clean data and calculate math features (SMA, RSI).
-3.  **Training**: Teach the AI models using the processed data.
-4.  **Serving**: Make the models available via an API for predictions.
+## 1. System Architecture (The Big Picture)
+The system operates as a **Microservices-based Pipeline** with four distinct stages:
+1.  **Ingestion Layer**: Fetches raw market data (Open, High, Low, Close, Volume) from Alpha Vantage.
+2.  **Processing Layer**: Transforms raw data into technical indicators (Features).
+3.  **Training Orchestration**: A Prefect pipeline that trains, evaluates, and saves models.
+4.  **Inference API**: A FastAPI server that loads these models to provide real-time predictions.
 
-## 2. Key Files Explained
+## 2. Key Components Explained
 
-### A. `src/orchestration/flows.py` (The Conductor)
-This is the "brain" of the training pipeline. It uses **Prefect** to organize tasks.
--   **`@task`**: Decorators that turn python functions into managed tasks (with retries/logging).
--   **`main_pipeline`**: The main function that calls everything in order:
-    1.  `fetch_daily_data`: Downloads CSVs.
-    2.  `process_data`: Adds technical indicators.
-    3.  `train_and_evaluate`: Trains the models and saves them.
+### A. Data Ingestion & Processing
+**File:** `src/processing/features.py`
+Feature engineering is critical for financial ML. We treat the market data as a time-series problem.
+-   **SMA (Simple Moving Average)**: Calculates the trend over 20 and 50 days.
+-   **RSI (Relative Strength Index)**: A momentum oscillator (0-100) to identify overbought/oversold conditions.
+-   **MACD (Moving Average Convergence Divergence)**: Tracks momentum changes.
+-   **Target Variables**:
+    -   `target_price`: Next day's closing price (Regression).
+    -   `target_direction`: 1 (Up) or 0 (Down) for next day (Classification).
 
-### B. `src/api/main.py` (The Web Server)
-This is the **FastAPI** application that serves the models.
--   **`@app.on_event("startup")`**: When the server starts, it looks into the `models/` folder and loads the `.pkl` files into memory.
--   **`/predict/price`**: An endpoint that takes features (SMA, RSI, etc.) and uses the loaded `regression_model` to predict the next closing price.
+### B. Machine Learning Models (Ensemble Approach)
+**File:** `src/models/train.py`
+Instead of relying on a single algorithm, we use **Ensemble Learning** for robustness.
 
-### C. `src/processing/features.py` (The Math)
-This file contains the logic for financial indicators.
--   **`calculate_sma`**: A simple rolling average.
--   **`calculate_rsi`**: A momentum indicator measuring the speed of price changes.
--   **`process_data`**: Combines these functions to transform raw "Close" prices into a dataset ready for ML.
+#### 1. Regression (Predicting Price)
+We use a **Voting Regressor**, which averages predictions from three models:
+-   **Linear Regression**: Captures simple linear trends.
+-   **Random Forest Regressor**: Captures complex, non-linear patterns (100 Decision Trees).
+-   **SVR (Support Vector Regressor)**: Uses an RBF kernel to find the optimal hyperplane in high-dimensional space.
+*Why?* Combining these reduces the variance and error of any single model.
 
-### D. `docker-compose.yml` (The Infrastructure)
-This file tells Docker how to run the system.
--   **`api`**: Builds your code and runs the FastAPI server.
--   **`prefect-server`**: Runs the dashboard where you see your pipelines.
--   **`postgres`**: A database used by Prefect to store flow history.
+#### 2. Classification (Predicting Direction)
+We use a **Voting Classifier** (Soft Voting) combining:
+-   **Random Forest Classifier**: Robust against overfitting.
+-   **SVC (Support Vector Classifier)**: Good at separating classes with clear margins.
+*Soft Voting* means we average the *probabilities* of each model class, not just their final votes, leading to more nuanced predictions.
 
-## 3. How the AI Works
-We use **Scikit-Learn** for the machine learning models (defined in `src/models/train.py`).
+#### 3. Unsupervised Learning (Market Analysis)
+-   **K-Means Clustering**: Groups market days into 3 clusters (e.g., Low Volatility, High Volatility) based on volatility and RSI.
+-   **PCA**: Reduces our 4 dimensions (SMA20, SMA50, RSI, MACD) into 2 principal components for 2D visualization.
 
-1.  **Regression (LinearRegression)**:
-    -   **Goal**: Predict the exact price (e.g., $150.25).
-    -   **How**: Draws a straight line through the data points to minimize error.
+### C. Orchestration (The Pipeline)
+**File:** `src/orchestration/flows.py`
+We use **Prefect** to manage the workflow.
+-   **`main_pipeline`**: Loops through our stock list (`AAPL`, `GOOGL`, `MSFT`, `AMZN`, `TSLA`, `NVDA`).
+-   For each stock, it sequentially runs: Fetch -> Process -> Train -> Evaluate -> Notify Discord.
+-   **Error Handling**: If one stock fails, the pipeline logs the error (via Discord) and continues to the next, ensuring resilience.
 
-2.  **Classification (RandomForest)**:
-    -   **Goal**: Predict direction (UP or DOWN).
-    -   **How**: Uses multiple "decision trees" (like a flowchart of yes/no questions) to vote on the outcome.
+### D. The API (Model Serving)
+**File:** `src/api/main.py`
+-   **Dynamic Loading**: On startup (`@app.on_event("startup")`), the API scans the `models/` directory. It dynamically loads whatever models it finds (e.g., `models/NVDA/regression_model.pkl`), making the system easily extensible to new stocks without changing code.
+-   **Enpoints**: Exposes REST endpoints (`/predict/price`, `/predict/direction`) that the frontend consumes.
 
-## 4. Common Questions & Answers
+## 3. Infrastructure & DevOps
 
-**Q: Why do we need Docker?**
-A: It ensures the code runs exactly the same on your computer, my computer, and the cloud, by packaging all dependencies (Python, Pandas, etc.) into a "container".
+### Docker
+**File:** `Dockerfile` & `docker-compose.yml`
+-   We containerize the application to ensure it runs identically on your laptop and the cloud.
+-   The `docker-compose` setup includes a Postgres service, which is used **exclusively by Prefect** to store flow run history. The main app uses a **file-based system** (CSVs/PKLs) for simplicity and portability.
 
-**Q: Why Prefect?**
-A: If the API fails or data is missing, Prefect handles retries and alerts. It turns a simple script into a robust pipeline.
+### CI/CD (GitHub Actions)
+**File:** `.github/workflows/deploy_to_hf.yml`
+-   On every push to `main`, GitHub Actions automatically:
+    1.  Runs `pytest` to verify code correctness.
+    2.  Pushes the code to the Hugging Face Space, triggering a new deployment.
 
-**Q: What is Deepchecks?**
-A: It's a testing tool that looks at our data to make sure it's not "drifting" (changing significantly) from what the model expects, ensuring our predictions remain accurate.
+## 4. Why This Architecture?
+-   **Modularity**: Separation of concerns (Ingestion vs Training vs Serving) makes debugging easy.
+-   **Scalability**: Adding a new stock (like NVDA) only required adding a string to the list; the pipeline handled the rest.
+-   **Reliability**: Ensembles prevent "putting all eggs in one basket" model-wise.

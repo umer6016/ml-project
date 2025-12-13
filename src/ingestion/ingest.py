@@ -45,9 +45,12 @@ def fetch_daily_data(symbol: str, output_dir: str = "data/raw"):
     return file_path
 
 if __name__ == "__main__":
-    # Example usage
-    try:
-        fetch_daily_data("AAPL")
-        fetch_daily_data("GOOGL")
-    except Exception as e:
-        print(f"Error: {e}")
+    # Example usage for manual execution
+    symbols = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA"]
+    print(f"Manually fetching data for: {symbols}")
+    
+    for symbol in symbols:
+        try:
+            fetch_daily_data(symbol)
+        except Exception as e:
+            print(f"Error fetching {symbol}: {e}")

@@ -12,6 +12,7 @@ app = FastAPI(title="Stock Prediction API", version="1.0.0")
 models = {}
 
 class PredictionInput(BaseModel):
+    symbol: str = "AAPL"
     sma_20: float
     sma_50: float
     rsi: float
@@ -20,32 +21,54 @@ class PredictionInput(BaseModel):
 class PredictionOutput(BaseModel):
     prediction: float
     model_type: str
+    symbol: str
 
 @app.on_event("startup")
 def load_models():
     """Load models on startup."""
-    model_dir = "models"
-    try:
-        # Load latest models (assuming single symbol for demo or specific path)
-        # In a real app, we might load models dynamically based on symbol
-        # Here we look for a generic or specific model
-        # For demo purposes, we'll try to load 'AAPL' models if they exist, else generic
-        
-        # Check for AAPL models first
-        symbol = "AAPL" 
-        reg_path = f"{model_dir}/{symbol}/regression_model.pkl"
-        clf_path = f"{model_dir}/{symbol}/classification_model.pkl"
-        
-        if os.path.exists(reg_path):
-            models['regression'] = joblib.load(reg_path)
-            print(f"Loaded regression model from {reg_path}")
-        
-        if os.path.exists(clf_path):
-            models['classification'] = joblib.load(clf_path)
-            print(f"Loaded classification model from {clf_path}")
+    from pathlib import Path
+    
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    model_dir = BASE_DIR / "models"
+    
+    print(f"Loading models from: {model_dir}")
+
+    if not model_dir.exists():
+        print(f"Models directory not found at {model_dir}")
+        return
+
+    # iterate over subdirs (symbols)
+    for symbol_dir in model_dir.iterdir():
+        if symbol_dir.is_dir():
+            symbol = symbol_dir.name
+            print(f"Found symbol directory: {symbol}")
             
-    except Exception as e:
-        print(f"Error loading models: {e}")
+            # Load Regression
+            reg_path = symbol_dir / "regression_model.pkl"
+            if reg_path.exists():
+                try:
+                    key = f"regression_{symbol}"
+                    models[key] = joblib.load(reg_path)
+                    print(f"Loaded {key} from {reg_path}")
+                    
+                    # Keep legacy 'regression' key pointing to AAPL for backward compat
+                    if 'regression' not in models or symbol == "AAPL":
+                         models['regression'] = models[key]
+                except Exception as e:
+                     print(f"Failed to load {reg_path}: {e}")
+
+            # Load Classification
+            clf_path = symbol_dir / "classification_model.pkl"
+            if clf_path.exists():
+                try:
+                    key = f"classification_{symbol}"
+                    models[key] = joblib.load(clf_path)
+                    print(f"Loaded {key} from {clf_path}")
+                    
+                    if 'classification' not in models or symbol == "AAPL":
+                         models['classification'] = models[key]
+                except Exception as e:
+                     print(f"Failed to load {clf_path}: {e}")
 
 @app.get("/health")
 def health_check():
@@ -53,21 +76,34 @@ def health_check():
 
 @app.post("/predict/price", response_model=PredictionOutput)
 def predict_price(input_data: PredictionInput):
-    if 'regression' not in models:
-        raise HTTPException(status_code=503, detail="Regression model not loaded")
+    symbol = input_data.symbol
+    model_key = f"regression_{symbol}"
+    
+    # Fallback to generic 'regression' if specific symbol not found
+    if model_key not in models:
+        if 'regression' in models:
+            model_key = 'regression'
+        else:
+            raise HTTPException(status_code=503, detail=f"Regression model for {symbol} not loaded")
     
     features = [[input_data.sma_20, input_data.sma_50, input_data.rsi, input_data.macd]]
-    prediction = models['regression'].predict(features)[0]
-    return {"prediction": prediction, "model_type": "regression"}
+    prediction = models[model_key].predict(features)[0]
+    return {"prediction": prediction, "model_type": str(type(models[model_key])), "symbol": symbol}
 
 @app.post("/predict/direction", response_model=PredictionOutput)
 def predict_direction(input_data: PredictionInput):
-    if 'classification' not in models:
-        raise HTTPException(status_code=503, detail="Classification model not loaded")
+    symbol = input_data.symbol
+    model_key = f"classification_{symbol}"
+    
+    if model_key not in models:
+        if 'classification' in models:
+             model_key = 'classification'
+        else:
+            raise HTTPException(status_code=503, detail=f"Classification model for {symbol} not loaded")
     
     features = [[input_data.sma_20, input_data.sma_50, input_data.rsi, input_data.macd]]
-    prediction = models['classification'].predict(features)[0]
-    return {"prediction": float(prediction), "model_type": "classification"}
+    prediction = models[model_key].predict(features)[0]
+    return {"prediction": float(prediction), "model_type": str(type(models[model_key])), "symbol": symbol}
 
 @app.post("/predict/batch")
 async def predict_batch(file: UploadFile = File(...)):

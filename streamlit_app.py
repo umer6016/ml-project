@@ -16,7 +16,7 @@ load_dotenv()
 
 # --- Config ---
 st.set_page_config(page_title="Stock Prediction System", layout="wide", page_icon="📈")
-MODEL_DIR = "models/AAPL" # Defaulting to AAPL models for demo inference on all stocks (Logic Transfer)
+# MODEL_DIR removed (Dynamic loading now used)
 
 # --- Secrets ---
 # Try to get from st.secrets (Cloud) or os.getenv (Local)
@@ -25,17 +25,24 @@ WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # --- Helper Functions ---
 @st.cache_resource
-def load_models_local():
-    """Loads models directly from disk per Standalone/Hugging Face requirements."""
+def load_models_local(symbol):
+    """Loads models directly from disk for the specific symbol."""
+    model_path = f"models/{symbol}"
     models = {}
     try:
-        models['regression'] = joblib.load(f"{MODEL_DIR}/regression_model.pkl")
-        models['classification'] = joblib.load(f"{MODEL_DIR}/classification_model.pkl")
-        models['clustering'] = joblib.load(f"{MODEL_DIR}/clustering_model.pkl")
-        models['pca'] = joblib.load(f"{MODEL_DIR}/pca_model.pkl")
+        models['regression'] = joblib.load(f"{model_path}/regression_model.pkl")
+        models['classification'] = joblib.load(f"{model_path}/classification_model.pkl")
+        # specific clustering/pca models might be needed too if visualizing
         return models
     except Exception as e:
-        st.error(f"Failed to load models locally: {e}")
+        # Fallback to AAPL if specific model missing (for robustness)
+        if symbol != "AAPL":
+             try:
+                 # st.warning(f"Models for {symbol} not found. Using AAPL logic transfer.")
+                 return load_models_local("AAPL")
+             except:
+                 pass
+        st.error(f"Failed to load models for {symbol}: {e}")
         return None
 
 from src.orchestration.notifications import notify_discord
@@ -169,7 +176,7 @@ st.markdown("---")
 st.subheader(f"🤖 AI Analysis for {symbol}")
 
 features = np.array([[data['sma_20'], data['sma_50'], data['rsi'], data['macd']]])
-models = load_models_local()
+models = load_models_local(symbol)
 
 if models:
     col_pred1, col_pred2 = st.columns(2)

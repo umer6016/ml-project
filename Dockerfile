@@ -23,7 +23,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY src/ src/
 COPY tests/ tests/
-COPY .env.example .env
+
 COPY streamlit_app.py .
 
 # Copy models (CRITICAL for Standalone Mode)
