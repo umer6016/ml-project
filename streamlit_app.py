@@ -32,7 +32,7 @@ def load_models_local(symbol):
     try:
         models['regression'] = joblib.load(f"{model_path}/regression_model.pkl")
         models['classification'] = joblib.load(f"{model_path}/classification_model.pkl")
-        # specific clustering/pca models might be needed too if visualizing
+        models['clustering'] = joblib.load(f"{model_path}/clustering_model.pkl")
         return models
     except Exception as e:
         # Fallback to AAPL if specific model missing (for robustness)
@@ -94,6 +94,10 @@ def fetch_live_data(symbol):
         rs = gain / loss
         data['rsi'] = 100 - (100 / (1 + rs))
         
+        # Volatility (20-day std dev of Returns)
+        data['returns'] = data['close'].pct_change()
+        data['volatility'] = data['returns'].rolling(window=20).std()
+        
         # MACD (12, 26, 9)
         exp1 = data['close'].ewm(span=12, adjust=False).mean()
         exp2 = data['close'].ewm(span=26, adjust=False).mean()
@@ -114,6 +118,7 @@ def fetch_live_data(symbol):
             "sma_50": float(latest['sma_50']),
             "rsi": float(latest['rsi']),
             "macd": float(latest['macd']),
+            "volatility": float(latest['volatility']) if not np.isnan(latest['volatility']) else 0.0,
             "is_mock": False
         }
 
@@ -160,41 +165,119 @@ if st.sidebar.button("🔄 Refresh Data"):
 with st.spinner(f"Fetching Live Data for {symbol}..."):
     data = fetch_live_data(symbol)
 
-# 2. visual Header
-col_head1, col_head2, col_head3 = st.columns(3)
-with col_head1:
-    st.metric("Current Price", f"${data['price']:.2f}", f"{data['change']:.2f}%")
-with col_head2:
-    st.metric("RSI (Momentum)", f"{data['rsi']:.1f}", "Overbought" if data['rsi']>70 else "Oversold" if data['rsi']<30 else "Neutral", delta_color="off")
-with col_head3:
-    source = "🔴 Mock Data (Check API Key)" if data['is_mock'] else "🟢 Live Alpha Vantage Data"
-    st.caption(f"Data Source: {source}")
-    st.caption(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+# --- Layout: Tabs ---
+tab1, tab2, tab3 = st.tabs(["🚀 Dashboard", "🧠 Deep Dive", "📊 Raw Data"])
 
-# 3. AI Prediction
-st.markdown("---")
-st.subheader(f"🤖 AI Analysis for {symbol}")
+# === TAB 1: DASHBOARD ===
+with tab1:
+    # A. Header Metrics
+    col_head1, col_head2, col_head3, col_head4 = st.columns(4)
+    with col_head1:
+        st.metric("Current Price", f"${data['price']:.2f}", f"{data['change']:.2f}%")
+    with col_head2:
+        st.metric("RSI (Momentum)", f"{data['rsi']:.1f}", "Overbought" if data['rsi']>70 else "Oversold" if data['rsi']<30 else "Neutral", delta_color="off")
+    with col_head3:
+        st.metric("Volatility", f"{data.get('volatility', 0):.4f}", help="20-Day Std Dev of Returns")
+    with col_head4:
+        source = "🔴 Mock" if data['is_mock'] else "🟢 Live"
+        st.metric("Data Source", source)
 
-features = np.array([[data['sma_20'], data['sma_50'], data['rsi'], data['macd']]])
-models = load_models_local(symbol)
+    st.markdown("---")
 
-if models:
-    col_pred1, col_pred2 = st.columns(2)
+    # B. AI Prediction Section
+    st.subheader(f"🤖 AI Prediction for {symbol}")
     
-    # Regression
-    pred_price = models['regression'].predict(features)[0]
+    features = np.array([[data['sma_20'], data['sma_50'], data['rsi'], data['macd']]])
+    models = load_models_local(symbol)
     
-    # Classification
-    pred_direction_prob = models['classification'].predict_proba(features)[0]
-    direction = "UP 🚀" if pred_direction_prob[1] > 0.5 else "DOWN 🔻"
-    confidence = max(pred_direction_prob)
-    
-    with col_pred1:
-        st.info(f"**Predicted Direction:** {direction}")
-        st.progress(float(confidence), text=f"Confidence: {confidence*100:.1f}%")
+    if models:
+        col_pred1, col_pred2 = st.columns(2)
         
-    with col_pred2:
-        st.success(f"**Target Price (Next Close):** ${pred_price:.2f}")
+        # Regression
+        pred_price = models['regression'].predict(features)[0]
+        
+        # Classification
+        pred_direction_prob = models['classification'].predict_proba(features)[0]
+        direction = "UP 🚀" if pred_direction_prob[1] > 0.5 else "DOWN 🔻"
+        confidence = max(pred_direction_prob)
+        
+        with col_pred1:
+            st.info(f"**Predicted Direction:** {direction}")
+            st.progress(float(confidence), text=f"Confidence: {confidence*100:.1f}%")
+            
+        with col_pred2:
+            st.success(f"**Target Price (Next Close):** ${pred_price:.2f}")
+
+    # C. Price Chart (Candlestick)
+    st.subheader("📉 Price History")
+    # Note: fetch_live_data only returns the LAST row's calculated metrics + latest meta, 
+    # but for charts we need the full dataframe. 
+    # To fix this without breaking the cache, we'll fetch full history purely for charting here.
+    # Ideally, fetch_live_data should return the full DF, but let's do a quick fetch for charts:
+    try:
+        if not data['is_mock'] and ALPHA_VANTAGE_KEY:
+            ts = TimeSeries(key=ALPHA_VANTAGE_KEY, output_format='pandas')
+            hist_data, _ = ts.get_daily(symbol=symbol, outputsize='compact')
+            hist_data = hist_data.sort_index()
+            hist_data.columns = ['open', 'high', 'low', 'close', 'volume']
+            
+            fig = go.Figure(data=[go.Candlestick(x=hist_data.index,
+                            open=hist_data['open'],
+                            high=hist_data['high'],
+                            low=hist_data['low'],
+                            close=hist_data['close'])])
+            fig.update_layout(title=f"{symbol} Daily Price", xaxis_title="Date", yaxis_title="Price", template="plotly_dark")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+             st.warning("Charts unavailable in Mock Data mode (Add API Key to see charts).")
+    except Exception as e:
+        st.error(f"Could not load chart: {e}")
+
+
+# === TAB 2: DEEP DIVE (Unsupervised & Technicals) ===
+with tab2:
+    st.header("🧠 Advanced Analysis")
+    
+    # Clustering / Market Regime
+    if models and 'clustering' in models:
+        st.subheader("🧐 Market Regime (Clustering)")
+        
+        clus_features = np.array([[data.get('volatility', 0), data['rsi']]])
+        cluster_id = models['clustering'].predict(clus_features)[0]
+        
+        regime_labels = {
+            0: "Regime 0 (Watch) 👁️",
+            1: "Regime 1 (Accumulate) 💰",
+            2: "Regime 2 (Risk/Volatile) ⚠️"
+        }
+        regime_name = regime_labels.get(cluster_id, f"Cluster {cluster_id}")
+        
+        st.info(f"**Current State:** {regime_name}")
+        st.caption("We use K-Means Clustering on Volatility & RSI to identify the market state.")
+
+    st.markdown("---")
+    
+    # Technical Indicators Chart
+    st.subheader("📊 Technical Indicators")
+    if not data['is_mock'] and 'hist_data' in locals():
+        # Calculate Indicators on history for plotting
+        # Simple RSI calculation for plotting
+        delta = hist_data['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        hist_data['rsi_plot'] = 100 - (100 / (1 + rs))
+
+        fig_rsi = px.line(hist_data, x=hist_data.index, y='rsi_plot', title="Relative Strength Index (14)")
+        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")
+        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
+        fig_rsi.update_layout(template="plotly_dark")
+        st.plotly_chart(fig_rsi, use_container_width=True)
+
+# === TAB 3: RAW DATA ===
+with tab3:
+    st.subheader("Raw Data View")
+    st.json(data)
 
 # --- Sidebar Notification ---
 st.sidebar.markdown("---")
